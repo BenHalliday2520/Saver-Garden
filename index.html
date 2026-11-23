@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Savertree</title>
+<style>
+  /* ---------- Colours and basic look ---------- */
+  :root {
+    --page: #F3F2EE;      /* background */
+    --card: #E3E0D8;      /* box fill */
+    --ink: #1F2A22;       /* main text and borders */
+    --muted: #5C5B55;     /* secondary text */
+    --green: #2F6E4A;     /* under budget / main buttons */
+    --orange: #A84A12;    /* over budget */
+    --line: #BDB8AC;      /* thin dividers */
+    --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }  /* make sure hidden things stay hidden */
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.35;
+  }
+  /* The whole app is a phone-width column, centred on a laptop screen */
+  .app {
+    max-width: 390px;
+    margin: 0 auto;
+    padding: 20px 16px 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 34px;
+    letter-spacing: 0.5px;
+    margin: 4px 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  h2 { font-size: 17px; margin: 0 0 6px; }
+  .money { font-variant-numeric: tabular-nums; }
+  .under { color: var(--green); }
+  .over  { color: var(--orange); }
+
+  .card {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 22px;
+    padding: 14px 16px;
+  }
+
+  /* ---------- Home layout (two columns, like the prototype) ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .spent-card { grid-row: span 2; display: flex; flex-direction: column; }
+  /* The list area fills whatever space is left in the box. The list itself is
+     "absolutely positioned" inside it, so adding expenses never makes the box
+     bigger – the list just scrolls instead. */
+  .list-area { position: relative; flex: 1; min-height: 140px; }
+  .expense-list {
+    list-style: none; margin: 0; padding: 0 4px 0 0;
+    position: absolute; inset: 0; overflow-y: auto;
+  }
+  .expense-list li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .expense-list .desc { overflow-wrap: anywhere; }
+  .empty-note { color: var(--muted); margin: 0; flex: 1; }
+  .totals { border-top: 2px solid var(--line); padding-top: 8px; margin-top: 8px; }
+  .totals div { display: flex; justify-content: space-between; }
+  .totals strong { font-weight: 700; }
+
+  /* Budget box */
+  .amount-box {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--white);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 8px 12px;
+  }
+  .amount-box span { font-weight: 700; font-size: 18px; }
+  .amount-box input {
+    border: none; outline: none; width: 100%;
+    font-size: 18px; font-weight: 700; background: transparent; color: var(--ink);
+  }
+  .amount-box:focus-within { outline: 3px solid rgba(47,110,74,0.35); }
+  .hint { font-size: 13px; color: var(--muted); margin: 6px 0 8px; }
+  .error { font-size: 13px; color: var(--orange); font-weight: 600; margin: 4px 0 6px; min-height: 0; }
+  .error:empty { display: none; }
+  .locked-amount { font-size: 34px; font-weight: 800; margin: 2px 0 18px; }
+  .locked-note { font-size: 13px; color: var(--muted); }
+
+  /* Buttons */
+  button { font: inherit; cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  .btn {
+    width: 100%; border-radius: 14px; padding: 12px; font-weight: 700; font-size: 16px;
+    border: 2px solid var(--ink); background: var(--white); color: var(--ink);
+  }
+  .btn-primary { background: var(--green); border-color: var(--green); color: var(--white); }
+  .add-btn {
+    border-radius: 22px; border: 2px solid var(--green); background: var(--white);
+    color: var(--green); font-weight: 700; font-size: 17px; padding: 14px 8px;
+  }
+  .add-btn small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+  /* Greyed-out look for Add expense / End week before the week starts */
+  .add-btn:disabled, .end-btn:disabled {
+    background: transparent; border: 2px dashed #8E8A80; color: var(--muted);
+  }
+
+  .row2 { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-top: 12px; }
+  .overall-card { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; }
+  .overall-card .label { font-weight: 700; font-size: 15px; }
+  .overall-card .value { font-weight: 700; font-size: 15px; text-align: right; }
+  .end-btn {
+    width: 92px; height: 92px; border-radius: 50%;
+    border: 2px solid var(--ink); background: var(--ink); color: var(--white);
+    font-weight: 700; font-size: 15px;
+  }
+
+  /* Garden & History box on Home */
+  .garden-box { margin-top: 12px; text-align: center; padding: 18px 16px; }
+  .garden-box h2 { font-size: 20px; }
+  .preview { display: flex; justify-content: center; gap: 4px; min-height: 90px; align-items: center; margin: 14px 0; }
+  .preview .empty-note { flex: 1; max-width: 280px; }  /* use the box's width, not one word per line */
+  .garden-count { font-weight: 700; }
+  .garden-tap { font-size: 14px; color: var(--muted); }
+
+  .garden-box { cursor: pointer; }
+  .garden-box:hover, .garden-box:focus-visible { border-color: var(--green); outline: none; box-shadow: 0 0 0 3px rgba(47,110,74,0.25); }
+
+  /* Message shown when there's no saved data (or saving isn't possible) */
+  .notice {
+    background: var(--white); border: 2px solid #D3CFC4; border-radius: 14px;
+    padding: 10px 14px; margin: 0 0 12px; font-size: 14px; color: var(--muted);
+  }
+
+  /* ---------- Garden & History screen ---------- */
+  .screen-head {
+    display: flex; gap: 22px; align-items: center;
+    margin: 4px 0 14px; padding-bottom: 12px; border-bottom: 2px solid var(--ink);
+  }
+  .screen-head h1 { border: none; margin: 0; padding: 0; font-size: 24px; }
+  .back-btn {
+    background: none; border: none; color: var(--green); font-weight: 700; font-size: 17px;
+    padding: 6px 0; text-align: left;
+  }
+  .plot {
+    background: #D9CDB6; border-radius: 16px; padding: 12px 8px;
+    /* 4 rows of trees tall, then it scrolls */
+    height: 268px; overflow-y: auto;
+  }
+  .plot-grid { display: grid; grid-template-columns: repeat(6, 1fr); row-gap: 12px; justify-items: center; }
+  .plot .empty-note { text-align: center; padding: 90px 12px 0; }
+  .garden-full { text-align: center; }
+  .garden-full .garden-count { margin-top: 10px; }
+  .rule-note { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+
+  .history-card { margin-top: 12px; padding: 14px 12px; }
+  .history-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 4px; }
+  .history-head h2 { font-size: 19px; }
+  .history-head span { font-size: 14px; color: var(--muted); }
+  .table-wrap { max-height: 282px; overflow-y: auto; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 4px; border-bottom: 1.5px solid #D3CFC4; white-space: nowrap; }
+  th {
+    position: sticky; top: 0;               /* headings stay fixed while the rows scroll */
+    background: var(--card); color: var(--muted); font-weight: 700;
+    border-bottom: 2px solid var(--line);
+  }
+  td.result { font-weight: 700; }
+  .scroll-hint { text-align: center; font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  .overall-row {
+    display: flex; justify-content: space-between; gap: 8px; font-weight: 700; font-size: 16px;
+    border-top: 2px solid var(--line); margin-top: 8px; padding: 10px 4px 0;
+  }
+  .overall-row span:last-child { text-align: right; }
+
+  .disclaimer { text-align: center; font-size: 13px; color: var(--muted); margin-top: 16px; }
+
+  /* ---------- Custom pop-ups (not the browser's built-in alert) ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(40, 42, 38, 0.55);   /* greys out the app behind */
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 10;
+  }
+  .overlay[hidden] { display: none; }
+  .modal {
+    width: 100%; max-width: 358px;
+    background: var(--page); border: 2px solid var(--ink); border-radius: 24px;
+    padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  }
+  .modal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; }
+  .dots { display: flex; gap: 5px; }
+  .dots i { display: block; width: 26px; height: 6px; border-radius: 3px; background: #D3CFC4; }
+  .dots i.on { background: var(--green); }
+  .modal h3 { font-size: 22px; margin: 0 0 12px; }
+  .modal .sub { color: var(--muted); margin: -6px 0 10px; overflow-wrap: anywhere; }
+  .text-box {
+    width: 100%; font-size: 18px; padding: 10px 14px;
+    border: 2px solid var(--ink); border-radius: 14px; background: var(--white); color: var(--ink);
+  }
+  .summary {
+    background: var(--white); border: 2px solid #D3CFC4; border-radius: 16px;
+    padding: 10px 14px; margin-bottom: 12px;
+  }
+  .summary div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+  .summary .result-row { border-top: 1.5px solid #D3CFC4; margin-top: 4px; padding-top: 7px; }
+  .summary strong { overflow-wrap: anywhere; text-align: right; }
+  .modal-note { font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+  .modal-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .modal-buttons .btn { font-size: 15px; padding: 11px 6px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= HOME SCREEN ================= -->
+  <main id="home">
+    <h1>Savertree</h1>
+
+    <p class="notice" id="notice" role="status" hidden></p>
+
+    <div class="grid">
+      <!-- Spent this week (left column) -->
+      <section class="card spent-card" aria-labelledby="spent-title">
+        <h2 id="spent-title">Spent this week</h2>
+        <div class="list-area">
+          <p class="empty-note" id="no-spending">No spending yet. Start the week to log expenses.</p>
+          <ul class="expense-list" id="expense-list"></ul>
+        </div>
+        <div class="totals">
+          <div><span>Spent</span><strong class="money" id="spent-total">£0.00</strong></div>
+          <div><span>Remaining</span><strong class="money" id="remaining">–</strong></div>
+        </div>
+      </section>
+
+      <!-- Weekly budget (top right) -->
+      <section class="card" aria-labelledby="budget-title">
+        <h2 id="budget-title">Weekly budget</h2>
+
+        <!-- Shown BEFORE the week starts -->
+        <div id="budget-entry">
+          <label class="amount-box">
+            <span>£</span>
+            <input id="budget-input" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Weekly budget in pounds">
+          </label>
+          <p class="hint">Enter an amount above £0, e.g. 3.45</p>
+          <p class="error" id="budget-error" role="alert"></p>
+          <button class="btn btn-primary" id="start-btn">Start week</button>
+        </div>
+
+        <!-- Shown DURING the week -->
+        <div id="budget-locked" hidden>
+          <div class="locked-amount money" id="locked-amount">£0.00</div>
+          <div class="locked-note">
+            <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><rect x="1" y="5" width="8" height="6.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 5V3.5a2 2 0 0 1 4 0V5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+            Locked until you end the week</div>
+        </div>
+      </section>
+
+      <!-- Add expense (under the budget box) -->
+      <button class="add-btn" id="add-btn" disabled>
+        + Add expense
+        <small id="add-hint">Start the week first</small>
+      </button>
+    </div>
+
+    <!-- Over/under overall + End week -->
+    <div class="row2">
+      <section class="card overall-card">
+        <span class="label">Over/under overall</span>
+        <span class="value" id="overall-home">–</span>
+      </section>
+      <button class="end-btn" id="end-btn" disabled>End week</button>
+    </div>
+
+    <!-- Garden & History preview -->
+    <section class="card garden-box" id="garden-box" role="button" tabindex="0" aria-label="Open your garden and weekly history">
+      <h2>Garden &amp; History</h2>
+      <div class="preview" id="preview"></div>
+      <div class="garden-count" id="garden-count">No plants yet</div>
+      <div class="garden-tap">Tap to open your garden and weekly history</div>
+    </section>
+
+    <p class="disclaimer">Savertree is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+  </main>
+
+  <!-- ================= GARDEN & HISTORY SCREEN ================= -->
+  <main id="garden-screen" hidden>
+    <div class="screen-head">
+      <button class="back-btn" id="back-btn">‹ Back</button>
+      <h1>Garden &amp; History</h1>
+    </div>
+
+    <!-- The garden: only earned plants, 6 per row -->
+    <section class="card garden-full" aria-label="Your garden">
+      <div class="plot" id="plot"></div>
+      <div class="garden-count" id="garden-count-full">0 plants</div>
+      <p class="rule-note">At or under budget earns a plant. Going over removes one.</p>
+    </section>
+
+    <!-- Weekly history table, newest first -->
+    <section class="card history-card" aria-labelledby="history-title">
+      <div class="history-head">
+        <h2 id="history-title">Weekly history</h2>
+        <span id="history-count">0 weeks</span>
+      </div>
+      <div class="table-wrap" id="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Week</th><th>Budget</th><th>Spent</th><th>Result</th><th>Plant</th></tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+      <p class="scroll-hint" id="scroll-hint" hidden>Scroll for earlier weeks</p>
+      <div class="overall-row">
+        <span>Overall</span>
+        <span id="overall-full">–</span>
+      </div>
+    </section>
+
+    <p class="disclaimer">Savertree is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+  </main>
+</div>
+
+<!-- ================= ADD EXPENSE POP-UP (3 steps in one box) ================= -->
+<div class="overlay" id="expense-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="expense-heading">
+    <div class="modal-top">
+      <span class="eyebrow" id="step-label">Add expense · Step 1 of 3</span>
+      <span class="dots"><i id="dot1"></i><i id="dot2"></i><i id="dot3"></i></span>
+    </div>
+
+    <!-- Step 1: what? -->
+    <div id="step1">
+      <h3 id="expense-heading">What did you spend it on?</h3>
+      <input class="text-box" id="desc-input" type="text" autocomplete="off" aria-label="What you spent it on">
+      <p class="hint">Up to 30 characters</p>
+      <p class="error" id="desc-error" role="alert"></p>
+      <div class="modal-buttons">
+        <button class="btn" id="step1-cancel">Cancel</button>
+        <button class="btn btn-primary" id="step1-next">Next</button>
+      </div>
+    </div>
+
+    <!-- Step 2: how much? -->
+    <div id="step2" hidden>
+      <h3>How much did it cost?</h3>
+      <p class="sub" id="step2-desc"></p>
+      <label class="amount-box">
+        <span>£</span>
+        <input id="amount-input" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Amount in pounds">
+      </label>
+      <p class="hint">Enter pounds and pence, e.g. 3.45 (up to 2 decimal places)</p>
+      <p class="error" id="amount-error" role="alert"></p>
+      <div class="modal-buttons">
+        <button class="btn" id="step2-back">Back</button>
+        <button class="btn btn-primary" id="step2-next">Next</button>
+      </div>
+    </div>
+
+    <!-- Step 3: are you sure? -->
+    <div id="step3" hidden>
+      <h3>Are you sure this is correct?</h3>
+      <div class="summary">
+        <div><span>Spent on</span><strong id="confirm-desc"></strong></div>
+        <div><span>Amount</span><strong class="money" id="confirm-amount"></strong></div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" id="step3-cancel">Cancel expense</button>
+        <button class="btn btn-primary" id="step3-yes">Yes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= END WEEK POP-UP ================= -->
+<div class="overlay" id="end-overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="end-heading">
+    <div class="modal-top"><span class="eyebrow">End week</span></div>
+    <h3 id="end-heading">Are you sure you want to end the week?</h3>
+    <div class="summary">
+      <div><span>Budget</span><strong class="money" id="end-budget"></strong></div>
+      <div><span>Spent</span><strong class="money" id="end-spent"></strong></div>
+      <div class="result-row"><span>Result</span><strong id="end-result"></strong></div>
+    </div>
+    <p class="modal-note" id="end-note"></p>
+    <div class="modal-buttons">
+      <button class="btn" id="end-cancel">Cancel</button>
+      <button class="btn btn-primary" id="end-yes">Yes, end week</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   SAVERTREE
+   All money is kept in WHOLE PENCE (integers), e.g. £3.40 is 340.
+   We only turn pence into "£3.40" when showing it on screen.
+   ===================================================================== */
+
+// ---------- The app's data ----------
+// weeks:   every completed week, oldest first: { budget: pence, spent: pence }
+// current: the week in progress
+const state = {
+  weeks: [],
+  current: { started: false, budget: 0, expenses: [] } // expenses: { desc, amount (pence) }
+};
+
+// ---------- Small helpers ----------
+const $ = (id) => document.getElementById(id);
+
+// 340 -> "£3.40"   (always 2 decimal places, never a minus sign)
+function money(pence) {
+  return "£" + (Math.abs(pence) / 100).toFixed(2);
+}
+
+// Add up a list of pence amounts (whole numbers, so no rounding problems)
+function sum(numbers) {
+  return numbers.reduce((total, n) => total + n, 0);
+}
+
+// Turn the difference (budget − spent) into the agreed wording.
+// Never says "saved".
+function resultText(difference) {
+  if (difference > 0) return { text: "Under budget by " + money(difference), cls: "under" };
+  if (difference < 0) return { text: "Overspent by " + money(difference), cls: "over" };
+  return { text: "On budget", cls: "" };
+}
+
+// ---------- Checking typed amounts ----------
+// Takes what the user typed and returns either { pence } or { error }.
+// (Basic version – fuller checks are added in stage 3.)
+function checkAmount(text) {
+  const value = Number(text.trim());
+  if (text.trim() === "" || isNaN(value) || value <= 0) {
+    return { error: "Please enter an amount above £0." };
+  }
+  return { pence: Math.round(value * 100) };
+}
+
+// ---------- The plant rule ----------
+// Rebuilds the garden from the list of completed weeks, every time.
+// At or under budget (spent <= budget) -> +1 plant.
+// Over budget -> remove the most recent plant, but never go below zero.
+// Also works out the plant change for each week (+1, −1 or 0) for the history.
+function buildGarden(weeks) {
+  let plants = 0;
+  const changes = [];
+  for (const week of weeks) {
+    if (week.spent <= week.budget) {
+      plants += 1;
+      changes.push(1);
+    } else if (plants > 0) {
+      plants -= 1;
+      changes.push(-1);
+    } else {
+      changes.push(0); // overspent, but the garden was already empty
+    }
+  }
+  return { plants, changes };
+}
+
+// Overall total = sum of budgets − sum of spending, completed weeks only.
+function overallDifference(weeks) {
+  return sum(weeks.map(w => w.budget)) - sum(weeks.map(w => w.spent));
+}
+
+// =====================================================================
+// SAVING AND LOADING
+// Uses the browser's built-in storage (localStorage). Nothing leaves
+// this computer. We save after every action: Start week, each expense
+// added, and End week.
+// =====================================================================
+const SAVE_KEY = "savertree-data";
+
+function save() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (err) {
+    showNotice("Savertree couldn't save in this browser, so your data will be lost when you close the page.");
+  }
+}
+
+// Checks that loaded data looks right before we trust it.
+function isWholePence(n, allowZero) {
+  return Number.isInteger(n) && (allowZero ? n >= 0 : n > 0);
+}
+function looksValid(data) {
+  if (!data || !Array.isArray(data.weeks) || !data.current) return false;
+  const weeksOk = data.weeks.every(w => w && isWholePence(w.budget, false) && isWholePence(w.spent, true));
+  const c = data.current;
+  const expensesOk = Array.isArray(c.expenses) &&
+    c.expenses.every(e => e && typeof e.desc === "string" && isWholePence(e.amount, false));
+  const currentOk = typeof c.started === "boolean" && expensesOk &&
+    (c.started ? isWholePence(c.budget, false) : true);
+  return weeksOk && currentOk;
+}
+
+// Runs once when the app opens. Never crashes: if anything is missing
+// or unreadable, it starts with an empty garden and shows a message.
+function load() {
+  let text = null;
+  try {
+    text = localStorage.getItem(SAVE_KEY);
+  } catch (err) {
+    showNotice("Savertree can't save in this browser, so your data will be lost when you close the page.");
+    return;
+  }
+  if (text === null) {
+    showNotice("Welcome to Savertree! Your garden is empty. Enter a weekly budget and press Start week to begin.");
+    return;
+  }
+  try {
+    const data = JSON.parse(text);
+    if (!looksValid(data)) throw new Error("bad data");
+    state.weeks = data.weeks;
+    state.current = data.current;
+  } catch (err) {
+    showNotice("Your saved data couldn't be read, so Savertree has started with an empty garden.");
+  }
+}
+
+// The short message at the top of Home (hidden again after your next action)
+function showNotice(message) {
+  $("notice").textContent = message;
+  $("notice").hidden = false;
+}
+function hideNotice() {
+  $("notice").hidden = true;
+}
+
+// ---------- Drawing a tree (the agreed SVG) ----------
+function treeSVG(width) {
+  const height = Math.round(width * 64 / 60);
+  return `<svg width="${width}" height="${height}" viewBox="0 0 60 64" role="img" aria-label="Tree">
+    <ellipse cx="30" cy="61" rx="17" ry="2.5" fill="#BFAE91"/>
+    <path d="M27 61 L28 38 L32 38 L33 61 Z" fill="#8A5A3B"/>
+    <path d="M30 46 L24 39 M30 44 L37 37" stroke="#8A5A3B" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <circle cx="18" cy="32" r="12" fill="#3E7D4F"/>
+    <circle cx="42" cy="32" r="12" fill="#3E7D4F"/>
+    <circle cx="30" cy="21" r="16" fill="#4C8B5E"/>
+    <circle cx="24" cy="16" r="7" fill="#6FA97C"/>
+    <circle cx="40" cy="29" r="4.5" fill="#6FA97C"/>
+  </svg>`;
+}
+
+// =====================================================================
+// RENDER: redraw the Home screen from `state`.
+// Called after every action, so the screen always matches the data.
+// =====================================================================
+function render() {
+  const cur = state.current;
+  const spent = sum(cur.expenses.map(e => e.amount));
+
+  // --- Budget box: input before the week, locked amount during it ---
+  $("budget-entry").hidden = cur.started;
+  $("budget-locked").hidden = !cur.started;
+  $("locked-amount").textContent = money(cur.budget);
+
+  // --- Buttons only work once the week has started ---
+  $("add-btn").disabled = !cur.started;
+  $("end-btn").disabled = !cur.started;
+  $("add-hint").hidden = cur.started;
+
+  // --- Spent this week list ---
+  const list = $("expense-list");
+  list.innerHTML = "";
+  for (const e of cur.expenses) {
+    const li = document.createElement("li");
+    const d = document.createElement("span");
+    d.className = "desc";
+    d.textContent = e.desc;           // textContent = shown as plain text, safe
+    const a = document.createElement("span");
+    a.className = "money";
+    a.textContent = money(e.amount);
+    li.append(d, a);
+    list.append(li);
+  }
+  $("no-spending").hidden = cur.expenses.length > 0;
+  $("no-spending").textContent = cur.started
+    ? "No spending yet. Tap Add expense to log something."
+    : "No spending yet. Start the week to log expenses.";
+
+  // --- Spent and Remaining ---
+  $("spent-total").textContent = money(spent);
+  const remainingEl = $("remaining");
+  if (cur.started) {
+    const remaining = cur.budget - spent;
+    remainingEl.textContent = (remaining < 0 ? "−" : "") + money(remaining);
+    remainingEl.className = "money " + (remaining < 0 ? "over" : "under");
+  } else {
+    remainingEl.textContent = "–";
+    remainingEl.className = "money";
+  }
+
+  // --- Over/under overall (completed weeks only) ---
+  const overallEl = $("overall-home");
+  if (state.weeks.length === 0) {
+    overallEl.textContent = "No weeks completed yet";
+    overallEl.className = "value";
+  } else {
+    const r = resultText(overallDifference(state.weeks));
+    overallEl.textContent = r.text;
+    overallEl.className = "value " + r.cls;
+  }
+
+  // --- Garden preview: the 5 most recent plants + the total ---
+  const { plants } = buildGarden(state.weeks);
+  const shown = Math.min(plants, 5);
+  $("preview").innerHTML = plants === 0
+    ? `<p class="empty-note">No plants yet. Finish a week at or under budget to grow your first one.</p>`
+    : treeSVG(52).repeat(shown);
+  let countText;
+  if (plants === 0) countText = "0 plants";
+  else if (plants === 1) countText = "1 plant";
+  else if (plants <= 5) countText = plants + " plants";
+  else countText = plants + " plants · showing your 5 most recent";
+  $("garden-count").textContent = countText;
+
+  renderGardenScreen();
+}
+
+// =====================================================================
+// RENDER: the Garden & History screen
+// =====================================================================
+function renderGardenScreen() {
+  const { plants, changes } = buildGarden(state.weeks);
+
+  // --- The garden: one tree per plant, 6 per row, no empty plots ---
+  $("plot").innerHTML = plants === 0
+    ? `<p class="empty-note">No plants yet. Finish a week at or under budget to grow your first one.</p>`
+    : `<div class="plot-grid">${treeSVG(48).repeat(plants)}</div>`;
+  $("garden-count-full").textContent = plants === 1 ? "1 plant" : plants + " plants";
+
+  // --- History table, newest week first ---
+  const body = $("history-body");
+  body.innerHTML = "";
+  for (let i = state.weeks.length - 1; i >= 0; i--) {
+    const w = state.weeks[i];
+    const diff = w.budget - w.spent;
+    let result, cls;
+    if (diff > 0)      { result = "Under " + money(diff); cls = "under"; }
+    else if (diff < 0) { result = "Over " + money(diff);  cls = "over"; }
+    else               { result = "On budget";            cls = ""; }
+    const change = changes[i];
+    const plantText = change > 0 ? "+1" : change < 0 ? "−1" : "0";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i + 1}</td>
+      <td class="money">${money(w.budget)}</td>
+      <td class="money">${money(w.spent)}</td>
+      <td class="result money ${cls}">${result}</td>
+      <td>${plantText}</td>`;
+    body.append(tr);
+  }
+  if (state.weeks.length === 0) {
+    body.innerHTML = `<tr><td colspan="5" style="white-space:normal;color:var(--muted)">No completed weeks yet.</td></tr>`;
+  }
+  const n = state.weeks.length;
+  $("history-count").textContent = (n === 1 ? "1 week" : n + " weeks") + ", newest first";
+  $("scroll-hint").hidden = n <= 7;
+
+  // --- Overall total under the table ---
+  const overallEl = $("overall-full");
+  if (n === 0) {
+    overallEl.textContent = "No weeks completed yet";
+    overallEl.className = "";
+  } else {
+    const r = resultText(overallDifference(state.weeks));
+    overallEl.textContent = r.text;
+    overallEl.className = r.cls;
+  }
+}
+
+// =====================================================================
+// SWITCHING SCREENS (Home <-> Garden & History)
+// =====================================================================
+function showScreen(name) {
+  $("home").hidden = name !== "home";
+  $("garden-screen").hidden = name !== "garden";
+  window.scrollTo(0, 0);
+  if (name === "garden") {
+    $("table-wrap").scrollTop = 0;   // start at the newest week
+    $("back-btn").focus();
+  } else {
+    $("garden-box").focus();
+  }
+}
+$("garden-box").addEventListener("click", () => showScreen("garden"));
+$("garden-box").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showScreen("garden"); }
+});
+$("back-btn").addEventListener("click", () => showScreen("home"));
+
+// =====================================================================
+// START WEEK
+// =====================================================================
+$("start-btn").addEventListener("click", () => {
+  const check = checkAmount($("budget-input").value);
+  if (check.error) {
+    $("budget-error").textContent = check.error;
+    return;
+  }
+  $("budget-error").textContent = "";
+  state.current = { started: true, budget: check.pence, expenses: [] };
+  $("budget-input").value = "";
+  hideNotice();
+  save();
+  render();
+});
+// Pressing Enter in the budget box also starts the week
+$("budget-input").addEventListener("keydown", (e) => { if (e.key === "Enter") $("start-btn").click(); });
+
+// =====================================================================
+// ADD EXPENSE POP-UP (3 steps)
+// =====================================================================
+let draft = { desc: "", amount: 0 };   // the expense being typed in
+
+function showStep(n) {
+  $("step1").hidden = n !== 1;
+  $("step2").hidden = n !== 2;
+  $("step3").hidden = n !== 3;
+  $("step-label").textContent = "Add expense · Step " + n + " of 3";
+  $("dot1").className = n >= 1 ? "on" : "";
+  $("dot2").className = n >= 2 ? "on" : "";
+  $("dot3").className = n >= 3 ? "on" : "";
+  if (n === 1) $("desc-input").focus();
+  if (n === 2) $("amount-input").focus();
+}
+
+function openExpense() {
+  draft = { desc: "", amount: 0 };
+  $("desc-input").value = "";
+  $("amount-input").value = "";
+  $("desc-error").textContent = "";
+  $("amount-error").textContent = "";
+  $("expense-overlay").hidden = false;
+  showStep(1);
+}
+
+function closeExpense() {
+  $("expense-overlay").hidden = true;
+  $("add-btn").focus();
+}
+
+$("add-btn").addEventListener("click", openExpense);
+
+// Step 1 -> Step 2
+$("step1-next").addEventListener("click", () => {
+  const desc = $("desc-input").value.trim();
+  if (desc === "") {
+    $("desc-error").textContent = "Please say what you spent it on.";
+    return;
+  }
+  $("desc-error").textContent = "";
+  draft.desc = desc;
+  $("step2-desc").textContent = desc;
+  showStep(2);
+});
+$("step1-cancel").addEventListener("click", closeExpense);
+
+// Step 2 -> Step 3
+$("step2-next").addEventListener("click", () => {
+  const check = checkAmount($("amount-input").value);
+  if (check.error) {
+    $("amount-error").textContent = check.error;
+    return;
+  }
+  $("amount-error").textContent = "";
+  draft.amount = check.pence;
+  $("confirm-desc").textContent = draft.desc;
+  $("confirm-amount").textContent = money(draft.amount);
+  showStep(3);
+});
+$("step2-back").addEventListener("click", () => showStep(1));
+
+// Step 3: Yes adds it, Cancel expense adds nothing
+$("step3-yes").addEventListener("click", () => {
+  state.current.expenses.push({ desc: draft.desc, amount: draft.amount });
+  save();
+  closeExpense();
+  render();
+  // Scroll the list to the bottom so the new expense is visible
+  $("expense-list").scrollTop = $("expense-list").scrollHeight;
+});
+$("step3-cancel").addEventListener("click", closeExpense);
+
+// Enter key = Next in steps 1 and 2
+$("desc-input").addEventListener("keydown", (e) => { if (e.key === "Enter") $("step1-next").click(); });
+$("amount-input").addEventListener("keydown", (e) => { if (e.key === "Enter") $("step2-next").click(); });
+
+// =====================================================================
+// END WEEK POP-UP
+// =====================================================================
+$("end-btn").addEventListener("click", () => {
+  const cur = state.current;
+  const spent = sum(cur.expenses.map(e => e.amount));
+  const r = resultText(cur.budget - spent);
+
+  $("end-budget").textContent = money(cur.budget);
+  $("end-spent").textContent = money(spent);
+  $("end-result").textContent = r.text;
+  $("end-result").className = r.cls;
+
+  // Tell the user what will happen to their garden
+  const plantsNow = buildGarden(state.weeks).plants;
+  let note;
+  if (spent <= cur.budget) note = "You'll earn a plant.";
+  else if (plantsNow > 0) note = "You'll lose your most recent plant.";
+  else note = "Your garden is empty, so there's no plant to lose.";
+  $("end-note").textContent = note + " Once the week has ended, its expenses can't be changed.";
+
+  $("end-overlay").hidden = false;
+  $("end-cancel").focus();
+});
+
+$("end-cancel").addEventListener("click", () => {
+  $("end-overlay").hidden = true;
+  $("end-btn").focus();
+});
+
+$("end-yes").addEventListener("click", () => {
+  const cur = state.current;
+  // Add the finished week to the history...
+  state.weeks.push({ budget: cur.budget, spent: sum(cur.expenses.map(e => e.amount)) });
+  // ...and get ready for next week's budget
+  state.current = { started: false, budget: 0, expenses: [] };
+  save();
+  $("end-overlay").hidden = true;
+  render();
+  $("budget-input").focus();
+});
+
+// ---------- When the page opens: load saved data, then draw ----------
+load();
+render();
+</script>
+</body>
+</html>
