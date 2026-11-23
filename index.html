@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Savertree</title>
+<title>Saver Garden</title>
 <style>
   /* ---------- Colours and basic look ---------- */
   :root {
@@ -226,7 +226,7 @@
 
   <!-- ================= HOME SCREEN ================= -->
   <main id="home">
-    <h1>Savertree</h1>
+    <h1>Saver Garden</h1>
 
     <p class="notice" id="notice" role="status" hidden></p>
 
@@ -292,7 +292,7 @@
       <div class="garden-tap">Tap to open your garden and weekly history</div>
     </section>
 
-    <p class="disclaimer">Savertree is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+    <p class="disclaimer">Saver Garden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
   </main>
 
   <!-- ================= GARDEN & HISTORY SCREEN ================= -->
@@ -330,7 +330,7 @@
       </div>
     </section>
 
-    <p class="disclaimer">Savertree is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+    <p class="disclaimer">Saver Garden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
   </main>
 </div>
 
@@ -405,7 +405,7 @@
 
 <script>
 /* =====================================================================
-   SAVERTREE
+   SAVER GARDEN
    All money is kept in WHOLE PENCE (integers), e.g. £3.40 is 340.
    We only turn pence into "£3.40" when showing it on screen.
    ===================================================================== */
@@ -477,7 +477,7 @@ function checkAmount(text) {
   // There's no maximum amount – this only stops numbers so huge the
   // computer can't add them up exactly (over about £90 trillion).
   if (!Number.isSafeInteger(pence)) {
-    return { error: "That number is too large for Savertree to add up accurately." };
+    return { error: "That number is too large for Saver Garden to add up accurately." };
   }
   return { pence };
 }
@@ -530,13 +530,15 @@ function overallDifference(weeks) {
 // this computer. We save after every action: Start week, each expense
 // added, and End week.
 // =====================================================================
+// The save key keeps its original name (from when the app was called
+// Savertree) so anyone who used the old version keeps their garden.
 const SAVE_KEY = "savertree-data";
 
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch (err) {
-    showNotice("Savertree couldn't save in this browser, so your data will be lost when you close the page.");
+    showNotice("Saver Garden couldn't save in this browser, so your data will be lost when you close the page.");
   }
 }
 
@@ -562,11 +564,11 @@ function load() {
   try {
     text = localStorage.getItem(SAVE_KEY);
   } catch (err) {
-    showNotice("Savertree can't save in this browser, so your data will be lost when you close the page.");
+    showNotice("Saver Garden can't save in this browser, so your data will be lost when you close the page.");
     return;
   }
   if (text === null) {
-    showNotice("Welcome to Savertree! Your garden is empty. Enter a weekly budget and press Start week to begin.");
+    showNotice("Welcome to Saver Garden! Your garden is empty. Enter a weekly budget and press Start week to begin.");
     return;
   }
   try {
@@ -575,7 +577,7 @@ function load() {
     state.weeks = data.weeks;
     state.current = data.current;
   } catch (err) {
-    showNotice("Your saved data couldn't be read, so Savertree has started with an empty garden.");
+    showNotice("Your saved data couldn't be read, so Saver Garden has started with an empty garden.");
   }
 }
 
