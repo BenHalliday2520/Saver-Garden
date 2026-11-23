@@ -92,6 +92,8 @@
   .hint { font-size: 13px; color: var(--muted); margin: 6px 0 8px; }
   .error { font-size: 13px; color: var(--orange); font-weight: 600; margin: 4px 0 6px; min-height: 0; }
   .error:empty { display: none; }
+  .invalid { border-color: var(--orange) !important; }   /* box outline when an entry is rejected */
+  #desc-counter.over { color: var(--orange); font-weight: 700; }
   .locked-amount { font-size: 34px; font-weight: 800; margin: 2px 0 18px; }
   .locked-note { font-size: 13px; color: var(--muted); }
 
@@ -344,7 +346,7 @@
     <div id="step1">
       <h3 id="expense-heading">What did you spend it on?</h3>
       <input class="text-box" id="desc-input" type="text" autocomplete="off" aria-label="What you spent it on">
-      <p class="hint">Up to 30 characters</p>
+      <p class="hint">Up to 30 characters <span id="desc-counter">(0/30)</span></p>
       <p class="error" id="desc-error" role="alert"></p>
       <div class="modal-buttons">
         <button class="btn" id="step1-cancel">Cancel</button>
@@ -438,14 +440,61 @@ function resultText(difference) {
 }
 
 // ---------- Checking typed amounts ----------
+// Used for BOTH the weekly budget and each expense amount.
 // Takes what the user typed and returns either { pence } or { error }.
-// (Basic version – fuller checks are added in stage 3.)
+// It reads the text digit by digit (rather than using decimals), so
+// "3.40" becomes exactly 340 pence with no rounding errors.
 function checkAmount(text) {
-  const value = Number(text.trim());
-  if (text.trim() === "" || isNaN(value) || value <= 0) {
-    return { error: "Please enter an amount above £0." };
+  let t = text.trim();
+  if (t.startsWith("£")) t = t.slice(1).trim();   // allow "£5" as well as "5"
+
+  // 1. Blank
+  if (t === "") {
+    return { error: "Please enter an amount, e.g. 3.45." };
   }
-  return { pence: Math.round(value * 100) };
+  // 2. Negative numbers
+  if (t.startsWith("-") || t.startsWith("−")) {
+    return { error: "The amount must be above £0. Negative amounts aren't allowed." };
+  }
+  // 3. Anything that isn't digits with an optional decimal point (e.g. "abc", "1,000", "5a")
+  //    The pattern means: some digits, then optionally "." and more digits.
+  const match = /^(\d*)(?:\.(\d*))?$/.exec(t);
+  if (!match || (match[1] === "" && (match[2] || "") === "")) {
+    return { error: "Please enter numbers only, e.g. 3.45." };
+  }
+  const pounds = match[1] || "0";
+  const decimals = match[2] || "";
+  // 4. More than 2 decimal places (e.g. 3.456)
+  if (decimals.length > 2) {
+    return { error: "Please use no more than 2 decimal places, e.g. 3.45." };
+  }
+  // Work out whole pence: pounds × 100 + the pence digits ("4" -> 40, "45" -> 45)
+  const pence = Number(pounds) * 100 + Number((decimals + "00").slice(0, 2));
+  // 5. Zero (e.g. "0", "0.00")
+  if (pence === 0) {
+    return { error: "The amount must be above £0." };
+  }
+  // There's no maximum amount – this only stops numbers so huge the
+  // computer can't add them up exactly (over about £90 trillion).
+  if (!Number.isSafeInteger(pence)) {
+    return { error: "That number is too large for Savertree to add up accurately." };
+  }
+  return { pence };
+}
+
+// ---------- Checking the expense description ----------
+const MAX_DESC = 30;
+// Counts characters properly, even for emoji or accented letters
+function charCount(text) {
+  return [...text].length;
+}
+function checkDescription(text) {
+  const desc = text.trim();
+  if (desc === "") return { error: "Please say what you spent it on." };
+  if (charCount(desc) > MAX_DESC) {
+    return { error: `Please keep it to ${MAX_DESC} characters or fewer (you have ${charCount(desc)}).` };
+  }
+  return { desc };
 }
 
 // ---------- The plant rule ----------
@@ -702,16 +751,33 @@ $("garden-box").addEventListener("keydown", (e) => {
 });
 $("back-btn").addEventListener("click", () => showScreen("home"));
 
+// ---------- Showing and clearing error messages ----------
+// Shows the message under the box and outlines the box in orange.
+function showError(inputId, errorId, message) {
+  $(errorId).textContent = message;
+  $(inputId).closest(".amount-box, .text-box")?.classList.add("invalid");
+  $(inputId).setAttribute("aria-invalid", "true");
+  $(inputId).focus();
+}
+function clearError(inputId, errorId) {
+  $(errorId).textContent = "";
+  $(inputId).closest(".amount-box, .text-box")?.classList.remove("invalid");
+  $(inputId).removeAttribute("aria-invalid");
+}
+// The message disappears as soon as you start correcting the entry
+$("budget-input").addEventListener("input", () => clearError("budget-input", "budget-error"));
+$("amount-input").addEventListener("input", () => clearError("amount-input", "amount-error"));
+
 // =====================================================================
 // START WEEK
 // =====================================================================
 $("start-btn").addEventListener("click", () => {
   const check = checkAmount($("budget-input").value);
   if (check.error) {
-    $("budget-error").textContent = check.error;
+    showError("budget-input", "budget-error", check.error);
     return;
   }
-  $("budget-error").textContent = "";
+  clearError("budget-input", "budget-error");
   state.current = { started: true, budget: check.pence, expenses: [] };
   $("budget-input").value = "";
   hideNotice();
@@ -742,8 +808,9 @@ function openExpense() {
   draft = { desc: "", amount: 0 };
   $("desc-input").value = "";
   $("amount-input").value = "";
-  $("desc-error").textContent = "";
-  $("amount-error").textContent = "";
+  clearError("desc-input", "desc-error");
+  clearError("amount-input", "amount-error");
+  updateCounter();
   $("expense-overlay").hidden = false;
   showStep(1);
 }
@@ -757,15 +824,25 @@ $("add-btn").addEventListener("click", openExpense);
 
 // Step 1 -> Step 2
 $("step1-next").addEventListener("click", () => {
-  const desc = $("desc-input").value.trim();
-  if (desc === "") {
-    $("desc-error").textContent = "Please say what you spent it on.";
+  const check = checkDescription($("desc-input").value);
+  if (check.error) {
+    showError("desc-input", "desc-error", check.error);
     return;
   }
-  $("desc-error").textContent = "";
-  draft.desc = desc;
-  $("step2-desc").textContent = desc;
+  clearError("desc-input", "desc-error");
+  draft.desc = check.desc;
+  $("step2-desc").textContent = check.desc;
   showStep(2);
+});
+// Live character counter – turns orange if you go over 30
+function updateCounter() {
+  const n = charCount($("desc-input").value.trim());
+  $("desc-counter").textContent = `(${n}/${MAX_DESC})`;
+  $("desc-counter").className = n > MAX_DESC ? "over" : "";
+}
+$("desc-input").addEventListener("input", () => {
+  updateCounter();
+  clearError("desc-input", "desc-error");
 });
 $("step1-cancel").addEventListener("click", closeExpense);
 
@@ -773,10 +850,10 @@ $("step1-cancel").addEventListener("click", closeExpense);
 $("step2-next").addEventListener("click", () => {
   const check = checkAmount($("amount-input").value);
   if (check.error) {
-    $("amount-error").textContent = check.error;
+    showError("amount-input", "amount-error", check.error);
     return;
   }
-  $("amount-error").textContent = "";
+  clearError("amount-input", "amount-error");
   draft.amount = check.pence;
   $("confirm-desc").textContent = draft.desc;
   $("confirm-amount").textContent = money(draft.amount);
