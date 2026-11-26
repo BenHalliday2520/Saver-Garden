@@ -1,16 +1,16 @@
-# Saver Garden
+# SaversGarden
 
 **A weekly budget garden.** Set a weekly spending limit, log what you spend, and watch your garden grow: every week you finish at or under budget earns a tree, and every week you overspend removes one.
 
 Built for the module **LUBS3151 Contemporary Issues in Banking**.
 
-> Saver Garden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.
+> SaversGarden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.
 
 ---
 
 ## The problem it tackles
 
-People who set a weekly spending limit often go over it, because a budget feels abstract and overspending has no immediate consequence. Saver Garden makes each week's result visible straight away, as a plant gained or lost in a virtual garden.
+People who set a weekly spending limit often go over it, because a budget feels abstract and overspending has no immediate consequence. SaversGarden makes each week's result visible straight away, as a plant gained or lost in a virtual garden.
 
 **Who it's for:** students and young adults who set a weekly budget but struggle to stick to it.
 
@@ -61,7 +61,7 @@ People who set a weekly spending limit often go over it, because a budget feels 
 
 ## Privacy
 
-Saver Garden has **no logins or accounts**. It does not collect names, bank details or location, and it does not send data anywhere. Everything you enter stays in your own browser on your own device.
+SaversGarden has **no logins or accounts**. It does not collect names, bank details or location, and it does not send data anywhere. Everything you enter stays in your own browser on your own device.
 
 ---
 
@@ -106,9 +106,9 @@ Ideas deliberately left out of this version:
 
 ## About the name
 
-The app was first called **Savertree**. During development we found that a financial planning website already uses that name, so the app was renamed **Saver Garden** to avoid confusion with an existing financial business and any possible trademark issue.
+The app was first called **Savertree**. During development we found that a financial planning website already uses that name, so the app was renamed **Saver Garden** to avoid confusion with an existing financial business. On the module professor's advice, it was then renamed **SaversGarden** to further reduce the risk of copyright or trademark issues.
 
-Saver Garden is a student project and is not connected to any company or website called Savertree. (Behind the scenes, the app's save key is still called `savertree-data`, so anyone who used the earlier version keeps their garden.)
+SaversGarden is a student project and is not connected to any company or website called Savertree. (Behind the scenes, the app's save key is still called `savertree-data`, so anyone who used the earlier version keeps their garden.)
 
 ---
 
@@ -122,4 +122,5 @@ The app was built in stages, with a git commit after each working step:
 4. Published on GitHub Pages so it can be used on any phone or laptop (no logins; each device keeps its own garden)
 5. Input checks
 6. This README
-7. Renamed from Savertree to Saver Garden
+7. Renamed from Savertree to Saver Garden (name already used by a financial planning website)
+8. Renamed from Saver Garden to SaversGarden (on the professor's advice)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Saver Garden</title>
+<title>SaversGarden</title>
 <style>
   /* ---------- Colours and basic look ---------- */
   :root {
@@ -226,7 +226,7 @@
 
   <!-- ================= HOME SCREEN ================= -->
   <main id="home">
-    <h1>Saver Garden</h1>
+    <h1>SaversGarden</h1>
 
     <p class="notice" id="notice" role="status" hidden></p>
 
@@ -292,7 +292,7 @@
       <div class="garden-tap">Tap to open your garden and weekly history</div>
     </section>
 
-    <p class="disclaimer">Saver Garden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+    <p class="disclaimer">SaversGarden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
   </main>
 
   <!-- ================= GARDEN & HISTORY SCREEN ================= -->
@@ -330,7 +330,7 @@
       </div>
     </section>
 
-    <p class="disclaimer">Saver Garden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
+    <p class="disclaimer">SaversGarden is a budgeting aid, not financial advice. Figures are based only on the spending you enter.</p>
   </main>
 </div>
 
@@ -405,7 +405,7 @@
 
 <script>
 /* =====================================================================
-   SAVER GARDEN
+   SAVERSGARDEN
    All money is kept in WHOLE PENCE (integers), e.g. £3.40 is 340.
    We only turn pence into "£3.40" when showing it on screen.
    ===================================================================== */
@@ -477,7 +477,7 @@ function checkAmount(text) {
   // There's no maximum amount – this only stops numbers so huge the
   // computer can't add them up exactly (over about £90 trillion).
   if (!Number.isSafeInteger(pence)) {
-    return { error: "That number is too large for Saver Garden to add up accurately." };
+    return { error: "That number is too large for SaversGarden to add up accurately." };
   }
   return { pence };
 }
@@ -538,7 +538,7 @@ function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch (err) {
-    showNotice("Saver Garden couldn't save in this browser, so your data will be lost when you close the page.");
+    showNotice("SaversGarden couldn't save in this browser, so your data will be lost when you close the page.");
   }
 }
 
@@ -564,11 +564,11 @@ function load() {
   try {
     text = localStorage.getItem(SAVE_KEY);
   } catch (err) {
-    showNotice("Saver Garden can't save in this browser, so your data will be lost when you close the page.");
+    showNotice("SaversGarden can't save in this browser, so your data will be lost when you close the page.");
     return;
   }
   if (text === null) {
-    showNotice("Welcome to Saver Garden! Your garden is empty. Enter a weekly budget and press Start week to begin.");
+    showNotice("Welcome to SaversGarden! Your garden is empty. Enter a weekly budget and press Start week to begin.");
     return;
   }
   try {
@@ -577,7 +577,7 @@ function load() {
     state.weeks = data.weeks;
     state.current = data.current;
   } catch (err) {
-    showNotice("Your saved data couldn't be read, so Saver Garden has started with an empty garden.");
+    showNotice("Your saved data couldn't be read, so SaversGarden has started with an empty garden.");
   }
 }
 
