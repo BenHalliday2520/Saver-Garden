@@ -18,7 +18,7 @@ People who set a weekly spending limit often go over it, because a budget feels 
 
 ## How to open it
 
-- **Online (any phone or laptop):** `https://<your-username>.github.io/savertree/`
+- **Online (any phone or laptop):** https://benhalliday2520.github.io/SaversGarden/
 - **On your own computer:** download `index.html` and double-click it. It opens in your web browser with nothing to install and no internet needed.
 
 ---
